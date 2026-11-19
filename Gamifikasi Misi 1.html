@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Identifikasi Ranah Taksonomi Bloom</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f4f0ec;
+            --text-color: #111827;
+            --border-color: #111827;
+            --color-kognitif: #a78bfa; /* Light Purple */
+            --color-afektif: #f472b6; /* Light Pink */
+            --color-psikomotorik: #fbbf24; /* Amber */
+            --color-nontraining: #34d399; /* Emerald */
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            touch-action: pan-y;
+            background-image: radial-gradient(var(--border-color) 1px, transparent 1px);
+            background-size: 20px 20px;
+            background-position: -10px -10px;
+        }
+
+        /* Neo-Brutalist Elements */
+        .neo-box {
+            border: 3px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 5px 5px 0px var(--border-color);
+            background-color: white;
+            transition: all 0.2s ease;
+        }
+
+        .neo-btn {
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 4px 4px 0px var(--border-color);
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .neo-btn:active:not(:disabled) {
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px var(--border-color);
+        }
+        
+        .neo-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .neo-input {
+            border: 3px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: inset 2px 2px 0px rgba(0,0,0,0.1);
+            background-color: #fff;
+        }
+        .neo-input:focus {
+            outline: none;
+            border-color: #2563eb;
+            box-shadow: 4px 4px 0px #2563eb;
+        }
+
+        /* Category Colors */
+        .bg-kognitif { background-color: var(--color-kognitif); }
+        .bg-afektif { background-color: var(--color-afektif); }
+        .bg-psikomotorik { background-color: var(--color-psikomotorik); }
+        .bg-nontraining { background-color: var(--color-nontraining); }
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); border-left: 2px solid var(--border-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        /* Drag & Drop Card Styles */
+        .draggable-card {
+            touch-action: none;
+            user-select: none;
+            z-index: 20;
+            cursor: grab;
+            will-change: transform, left, top;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .draggable-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 7px 7px 0px var(--border-color);
+        }
+        .draggable-card:active { cursor: grabbing; }
+        
+        .dragging-active {
+            position: fixed !important;
+            pointer-events: none !important;
+            z-index: 9999 !important;
+            transition: none !important;
+            transform: scale(1.03) rotate(-1.5deg);
+            box-shadow: 10px 10px 0px rgba(17, 24, 39, 0.8) !important;
+        }
+
+        .drop-zone { 
+            transition: all 0.2s ease; 
+        }
+        .drop-zone.drag-over {
+            transform: scale(1.03);
+            filter: brightness(1.08);
+            box-shadow: inset 0 0 0 4px white, 6px 6px 0px var(--border-color);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-3 sm:p-6 select-none">
+
+    <div id="app-container" class="w-full max-w-3xl mx-auto relative min-h-screen flex flex-col justify-between z-10">
+        
+        <!-- Header Section -->
+        <header class="w-full flex justify-between items-center mb-4 hidden shrink-0" id="game-header">
+            <div class="neo-box px-4 py-2 bg-white flex items-center gap-2 border-3 shadow-[3px_3px_0px_#111827]">
+                <span class="text-lg">🕵️‍♂️</span>
+                <div class="font-bold text-xs sm:text-sm">Analis: <span id="display-name" class="text-blue-600 font-black">User</span></div>
+            </div>
+            <button id="btn-mute" class="neo-btn bg-white w-10 h-10 flex items-center justify-center rounded-full text-base" title="Toggle Sound">
+                🔊
+            </button>
+        </header>
+
+        <!-- SCREEN 1: Intro / Login -->
+        <section id="screen-intro" class="my-auto flex flex-col justify-center items-center text-center animate-pop py-6">
+            <div class="neo-box p-6 sm:p-8 max-w-md w-full bg-[#fcd34d]">
+                <div class="inline-block px-3 py-1.5 bg-black text-white text-xs font-black rounded-full uppercase tracking-wider mb-4 border border-black">
+                    Gamifikasi Training Design Part 1
+                </div>
+                
+                <h1 class="text-2xl sm:text-3xl font-black mb-6 uppercase leading-tight tracking-tight text-gray-900">
+                    IDENTIFIKASI RANAH<br><span class="text-blue-600">TAKSONOMI BLOOM</span>
+                </h1>
+                
+                <div class="mb-6 text-left">
+                    <label class="block font-bold mb-2 text-xs uppercase tracking-wide text-gray-800">Nama Pemain</label>
+                    <input type="text" id="input-name" class="neo-input w-full p-3 font-bold text-base" placeholder="Masukkan nama Anda..." autocomplete="off" maxlength="15">
+                </div>
+                
+                <button id="btn-login" class="neo-btn bg-blue-500 text-white w-full py-4 text-lg hover:bg-blue-600">Mulai Permainan</button>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: Mission Briefing -->
+        <section id="screen-briefing" class="my-auto flex flex-col justify-center items-center hidden py-4">
+            <div class="neo-box p-6 sm:p-8 w-full bg-white animate-pop">
+                <h2 class="text-2xl sm:text-3xl font-black mb-4 uppercase border-b-4 border-black pb-2 inline-block">Mission Briefing</h2>
+                
+                <div class="space-y-4 font-medium text-xs sm:text-sm mb-6 text-gray-800">
+                    <p class="bg-red-100 p-3.5 rounded-lg border-2 border-black font-semibold text-red-900">
+                        🚨 <strong>HOOK (WHY):</strong> Diagnosis asal-asalan bikin perusahaan rugi besar! Training butuh biaya dan waktu. Kalau akar masalahnya ada di sistem/SOP (Non-Training) tetapi malah diberi Training, masalah di lapangan tidak akan pernah selesai!
+                    </p>
+                    <p>
+                        Halo, <span id="briefing-name" class="font-bold text-blue-600"></span>. Anda bertugas menyortir <strong>20 laporan temuan kasus</strong> dari unit Toko, Gudang, Point Coffee, Say Bread, hingga Yummy Choice.
+                    </p>
+                    <div class="bg-gray-50 p-3.5 rounded-lg border-2 border-gray-300">
+                        <p class="font-bold mb-1">📋 Peraturan & Instruksi Main:</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li><strong>Drag & Drop</strong> (geser) kartu laporan atau <strong>Ketuk (Tap)</strong> pilihan kategori di bawah.</li>
+                            <li>Klasifikasikan ke: <strong>Kognitif</strong>, <strong>Afektif</strong>, <strong>Psikomotorik</strong>, atau <strong>Non-Training</strong>.</li>
+                            <li><strong>Wajib membaca Modal Feedback</strong> di tiap jawaban sebelum menekan tombol Lanjut.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <button id="btn-start" class="neo-btn bg-green-400 text-black w-full py-4 text-lg hover:bg-green-500 font-black tracking-wide">SAYA SIAP MEMULAI</button>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: Game Area -->
+        <section id="screen-game" class="flex-grow flex flex-col justify-between hidden py-2 gap-3">
+            
+            <!-- Progress & Score Header Bar -->
+            <div class="w-full flex items-center gap-3 neo-box p-3 bg-white shrink-0">
+                <div class="font-bold whitespace-nowrap text-xs sm:text-sm">Progress: <span id="progress-text" class="text-blue-600 font-black">0/20</span></div>
+                <div class="flex-grow h-5 bg-gray-200 border-2 border-black rounded-full overflow-hidden relative">
+                    <div id="progress-bar" class="h-full bg-blue-500 transition-all duration-300 w-0"></div>
+                </div>
+                <div class="font-black text-sm sm:text-base min-w-[70px] text-right">Skor: <span id="score-text" class="text-green-600">0</span></div>
+            </div>
+
+            <!-- Card Spawn Container -->
+            <div class="w-full flex items-center justify-center my-auto min-h-[200px] sm:min-h-[230px] p-1 relative" id="card-container">
+                <!-- Card dynamically injected here -->
+            </div>
+
+            <!-- Drop Zones Grid -->
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-3.5 w-full shrink-0 z-10 mb-2">
+                <div class="drop-zone neo-box bg-kognitif p-3 flex flex-col items-center justify-center text-center select-none cursor-pointer min-h-[90px] sm:min-h-[100px]" data-category="Kognitif">
+                    <span class="text-2xl mb-0.5">🧠</span>
+                    <h3 class="font-black text-xs sm:text-base uppercase tracking-tight">Kognitif</h3>
+                    <p class="text-[10px] sm:text-xs font-bold opacity-90">Belum Tahu / Hafal</p>
+                </div>
+                
+                <div class="drop-zone neo-box bg-afektif p-3 flex flex-col items-center justify-center text-center select-none cursor-pointer min-h-[90px] sm:min-h-[100px]" data-category="Afektif">
+                    <span class="text-2xl mb-0.5">❤️</span>
+                    <h3 class="font-black text-xs sm:text-base uppercase tracking-tight">Afektif</h3>
+                    <p class="text-[10px] sm:text-xs font-bold opacity-90">Sikap / Kemauan</p>
+                </div>
+                
+                <div class="drop-zone neo-box bg-psikomotorik p-3 flex flex-col items-center justify-center text-center select-none cursor-pointer min-h-[90px] sm:min-h-[100px]" data-category="Psikomotorik">
+                    <span class="text-2xl mb-0.5">💪</span>
+                    <h3 class="font-black text-xs sm:text-base uppercase tracking-tight">Psikomotorik</h3>
+                    <p class="text-[10px] sm:text-xs font-bold opacity-90">Skill Fisik / Gerak</p>
+                </div>
+                
+                <div class="drop-zone neo-box bg-nontraining p-3 flex flex-col items-center justify-center text-center select-none cursor-pointer min-h-[90px] sm:min-h-[100px]" data-category="Non-Training">
+                    <span class="text-2xl mb-0.5">⚙️</span>
+                    <h3 class="font-black text-xs sm:text-base uppercase tracking-tight">Non-Training</h3>
+                    <p class="text-[10px] sm:text-xs font-bold opacity-90">Sistem / SOP / SDM</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal Feedback -->
+        <div id="modal-feedback" class="fixed inset-0 bg-black/75 z-50 hidden flex justify-center items-center p-4 backdrop-blur-sm">
+            <div class="neo-box w-full max-w-md bg-white p-5 sm:p-6 flex flex-col items-center text-center transform scale-95 transition-transform duration-200" id="modal-content">
+                <div id="modal-icon" class="text-5xl mb-1">✅</div>
+                <h2 id="modal-title" class="text-2xl sm:text-3xl font-black uppercase mb-2">ANALISIS TEPAT!</h2>
+                
+                <div class="flex flex-wrap gap-2 justify-center mb-3">
+                    <span class="px-3 py-1 border-2 border-black rounded-full font-bold text-xs" id="modal-cat-user">Pilihan Anda</span>
+                    <span class="px-3 py-1 border-2 border-black rounded-full font-bold text-xs hidden" id="modal-cat-correct">Kunci Jawaban</span>
+                </div>
+                
+                <div id="modal-desc" class="text-xs sm:text-sm font-medium mb-5 p-3.5 bg-gray-50 border-2 border-gray-800 rounded-lg text-left w-full max-h-48 overflow-y-auto"></div>
+                
+                <button id="btn-next" class="neo-btn bg-black text-white w-full py-3 text-base hover:bg-gray-800 tracking-wider">LANJUTKAN LAPORAN</button>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: Outro / Debrief -->
+        <section id="screen-outro" class="flex-grow flex flex-col hidden h-full w-full py-4">
+            <div class="neo-box bg-white p-5 sm:p-6 w-full flex-grow overflow-y-auto mb-4">
+                <div class="text-center mb-5">
+                    <h2 class="text-2xl sm:text-3xl font-black uppercase mb-1">Performance Review</h2>
+                    <div class="text-5xl font-black mb-2 text-blue-600" id="final-score">0</div>
+                    <div id="final-status" class="inline-block px-4 py-1.5 bg-yellow-300 border-2 border-black font-bold uppercase text-sm sm:text-base transform -rotate-1">
+                        Status Placeholder
+                    </div>
+                </div>
+
+                <!-- Stats Grid Breakdown -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6" id="stats-container"></div>
+
+                <h3 class="font-black text-lg mb-3 border-b-3 border-black inline-block">Rekap Feedback Diagnostik</h3>
+                <div class="space-y-2.5" id="recap-list"></div>
+            </div>
+            
+            <button id="btn-restart" class="neo-btn bg-blue-500 text-white w-full py-4 text-lg hover:bg-blue-600 shrink-0 relative flex justify-center items-center">
+                <span id="btn-restart-text">KEMBALI KE CLASSROOM</span>
+                <!-- Loading Spinner (Hidden default) -->
+                <svg id="btn-restart-spinner" class="animate-spin ml-2 h-5 w-5 text-white hidden absolute right-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </section>
+
+    </div>
+
+    <script>
+        const rawQuestions = [
+            { text: "Staf Yummy Choice belum hafal takaran bahan baku (ayam, udang, tepung) sesuai resep standar siomay sehingga rasa produk tidak konsisten antar cabang.", category: "Kognitif", explanation: "Masalahnya soal 'belum tahu/belum hafal' informasi (takaran resep). Ini murni soal pengetahuan, bukan soal sikap atau keterampilan tangan." },
+            { text: "Beberapa staf terlihat malas menyapa pelanggan meski sudah tahu SOP-nya.", category: "Afektif", explanation: "Staf sudah tahu caranya (kognitif sudah terpenuhi), tapi tidak mau melakukannya. Ini soal kemauan dan sikap." },
+            { text: "Barista baru di Point Coffee masih sering salah takaran dan urutan langkah saat membuat menu Palm Sugar Latte sesuai standar resep.", category: "Psikomotorik", explanation: "Ini soal eksekusi fisik: tangan dan koordinasi saat meracik minuman sesuai standar. Butuh latihan berulang, bukan cuma dijelaskan." },
+            { text: "Antrean kasir menumpuk karena jumlah kasir tidak sebanding dengan jumlah pelanggan di jam sibuk.", category: "Non-Training", explanation: "Akar masalahnya jumlah SDM, bukan kemampuan kasir. Training tidak akan menambah jumlah kasir." },
+            { text: "Karyawan sering menunda pekerjaan meski sudah paham cara mengerjakannya.", category: "Afektif", explanation: "'Sudah paham' berarti kognitif bukan masalahnya. Yang bermasalah adalah motivasi atau disiplin melakukannya." },
+            { text: "Staf baru belum memahami perbedaan SOP retur produk kategori A dan B di toko.", category: "Kognitif", explanation: "Ini soal belum tahu aturan/perbedaan kebijakan, murni informasi yang belum dikuasai." },
+            { text: "Staf sering terlambat input laporan karena sistem aplikasi sering error.", category: "Non-Training", explanation: "Penyebabnya sistem/teknis (aplikasi error), bukan kemampuan staf." },
+            { text: "Staf Say Bread sering gagal membentuk adonan roti sesuai ukuran standar karena teknik pengulenan belum konsisten.", category: "Psikomotorik", explanation: "'Teknik belum konsisten' menunjuk ke keterampilan tangan yang perlu dilatih berulang." },
+            { text: "Pegawai gudang toko belum hafal sistem penamaan kode SKU barang sesuai standar operasional.", category: "Kognitif", explanation: "Soal hafalan/pemahaman sistem kode, murni kebutuhan informasi." },
+            { text: "Tim sering enggan memberi masukan saat briefing meski diberi kesempatan.", category: "Afektif", explanation: "Kesempatan sudah ada, tapi ada keengganan atau rasa tidak nyaman. Ini soal sikap dan kepercayaan diri." },
+            { text: "Staf Yummy Choice kesulitan menjaga hasil gorengan ayam tetap matang merata karena teknik pembalikan di penggorengan belum tepat.", category: "Psikomotorik", explanation: "'Teknik pembalikan belum tepat' adalah soal gerakan dan timing fisik saat memasak, perlu jam terbang latihan." },
+            { text: "Kesalahan stok terjadi karena SOP pencatatan barang masuk belum diperbarui sejak ganti sistem.", category: "Non-Training", explanation: "Sumber masalahnya SOP yang usang, bukan kemampuan staf mengikuti SOP." },
+            { text: "Beberapa staf terlihat kurang percaya diri saat harus presentasi ke atasan.", category: "Afektif", explanation: "'Kurang percaya diri' adalah soal emosi dan keyakinan diri, bukan soal tidak tahu cara presentasi." },
+            { text: "Staf Yummy Choice belum memahami urutan proses pengukusan siomay ayam udang sesuai standar resep, termasuk suhu dan durasi yang tepat.", category: "Kognitif", explanation: "Ini soal belum tahu urutan dan parameter proses, sifatnya informasi/pengetahuan prosedural." },
+            { text: "Karyawan kewalahan karena satu orang merangkap tiga posisi sekaligus di toko.", category: "Non-Training", explanation: "Masalahnya beban kerja dan struktur SDM, bukan kompetensi individu." },
+            { text: "Barista Point Coffee sering salah takaran tekanan saat mengoperasikan mesin espresso manual.", category: "Psikomotorik", explanation: "Ini soal ketepatan gerakan dan kontrol fisik saat mengoperasikan alat, khas ranah keterampilan motorik." },
+            { text: "Staf administrasi belum memahami alur operasional buka dan tutup toko Indomaret sesuai kebijakan terbaru.", category: "Kognitif", explanation: "Soal belum tahu alur/prosedur terbaru, begitu dijelaskan biasanya langsung selesai." },
+            { text: "Ada kecenderungan staf senior menolak metode kerja baru meski sudah dilatih.", category: "Afektif", explanation: "Sudah dilatih (kognitif dan psikomotorik terpenuhi), tapi menolak menerapkannya. Murni soal sikap dan penerimaan perubahan." },
+            { text: "Keterlambatan pengiriman barang terjadi karena jadwal distribusi belum disesuaikan dengan jam operasional toko.", category: "Non-Training", explanation: "Akar masalahnya jadwal/sistem distribusi, bukan kompetensi staf." },
+            { text: "Staf Say Bread belum lancar membentuk pola topping roti sesuai standar visual produk.", category: "Psikomotorik", explanation: "'Belum lancar' menunjukkan soal jam terbang dan koordinasi tangan, bukan soal pengetahuan." }
+        ];
+
+        let state = {
+            playerName: "",
+            questions: [],
+            currentIndex: 0,
+            score: 0,
+            history: [],
+            audioMuted: false,
+            pointsPerCorrect: 100,
+            isDragging: false,
+            startTime: null 
+        };
+
+        const screens = {
+            intro: document.getElementById('screen-intro'),
+            briefing: document.getElementById('screen-briefing'),
+            game: document.getElementById('screen-game'),
+            outro: document.getElementById('screen-outro')
+        };
+        const header = document.getElementById('game-header');
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let bgmInterval = null;
+
+        const sfx = {
+            playTone: (freq, type, duration, vol=0.08) => {
+                if (state.audioMuted) return;
+                try {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + duration);
+                } catch(e) {}
+            },
+            click: () => sfx.playTone(600, 'sine', 0.08, 0.05),
+            drag: () => sfx.playTone(350, 'triangle', 0.05, 0.04),
+            drop: () => sfx.playTone(220, 'square', 0.1, 0.05),
+            correct: () => {
+                sfx.playTone(880, 'sine', 0.15, 0.08);
+                setTimeout(() => sfx.playTone(1108, 'sine', 0.3, 0.08), 90);
+            },
+            wrong: () => {
+                sfx.playTone(260, 'sawtooth', 0.25, 0.08);
+                setTimeout(() => sfx.playTone(190, 'sawtooth', 0.35, 0.08), 120);
+            },
+            win: () => {
+                [523, 659, 783, 1046].forEach((f, i) => {
+                    setTimeout(() => sfx.playTone(f, 'square', 0.3, 0.08), i * 140);
+                });
+            }
+        };
+
+        const bgm = {
+            start: () => {
+                if (state.audioMuted || bgmInterval) return;
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                let step = 0;
+                bgmInterval = setInterval(() => {
+                    if (state.audioMuted) return;
+                    if (step % 4 === 0) sfx.playTone(65, 'sine', 0.25, 0.05); 
+                    if (step % 2 === 0) sfx.playTone(4000, 'square', 0.04, 0.01); 
+                    step++;
+                }, 250);
+            },
+            stop: () => {
+                if (bgmInterval) clearInterval(bgmInterval);
+                bgmInterval = null;
+            }
+        };
+
+        document.getElementById('btn-mute').addEventListener('click', () => {
+            state.audioMuted = !state.audioMuted;
+            document.getElementById('btn-mute').textContent = state.audioMuted ? '🔇' : '🔊';
+            sfx.click();
+            if (state.audioMuted) bgm.stop(); else bgm.start();
+        });
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function showScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.add('hidden'));
+            screens[screenName].classList.remove('hidden');
+            if (screenName === 'game' || screenName === 'outro' || screenName === 'briefing') {
+                header.classList.remove('hidden');
+            } else {
+                header.classList.add('hidden');
+            }
+        }
+
+        function highlightKeywords(text) {
+            const keywords = ['belum hafal', 'malas', 'salah takaran', 'antrean', 'menunda', 'belum memahami', 'sistem error', 'teknik', 'enggan', 'kurang percaya diri', 'beban kerja', 'menolak', 'jadwal', 'belum lancar'];
+            let result = text;
+            keywords.forEach(kw => {
+                const regex = new RegExp(`(${kw})`, 'gi');
+                result = result.replace(regex, '<span class="font-black text-black underline decoration-wavy decoration-yellow-400">$1</span>');
+            });
+            return result;
+        }
+
+        document.getElementById('btn-login').addEventListener('click', () => {
+            const nameInput = document.getElementById('input-name');
+            const name = nameInput.value.trim();
+            if (!name) {
+                nameInput.classList.add('animate-shake', 'border-red-500');
+                setTimeout(() => nameInput.classList.remove('animate-shake', 'border-red-500'), 400);
+                sfx.wrong();
+                return;
+            }
+            sfx.click();
+            state.playerName = name;
+            document.getElementById('display-name').textContent = name;
+            document.getElementById('briefing-name').textContent = name;
+            showScreen('briefing');
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        });
+
+        document.getElementById('btn-start').addEventListener('click', () => {
+            sfx.click();
+            startGame();
+            bgm.start();
+        });
+
+        let dragClone = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function renderCard() {
+            const container = document.getElementById('card-container');
+            container.innerHTML = '';
+
+            if (state.currentIndex >= state.questions.length) {
+                endGame();
+                return;
+            }
+
+            const q = state.questions[state.currentIndex];
+            
+            const card = document.createElement('div');
+            card.className = 'draggable-card neo-box bg-white p-4 sm:p-5 w-full max-w-lg text-center animate-pop border-3 relative overflow-hidden select-none';
+            card.innerHTML = `
+                <div class="flex justify-between items-center pb-2 mb-2 border-b-2 border-black">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 border border-black inline-block"></span>
+                        <span class="font-black text-[11px] uppercase tracking-wider text-gray-700">LAPORAN TEMUAN LAPANGAN</span>
+                    </div>
+                    <span class="px-2 py-0.5 bg-yellow-300 border border-black rounded font-black text-[11px]">BERKAS #${state.currentIndex + 1}/20</span>
+                </div>
+                
+                <div class="text-sm sm:text-base font-bold leading-relaxed my-2 text-gray-900 px-1">
+                    ${highlightKeywords(q.text)}
+                </div>
+                
+                <div class="mt-3 pt-2 border-t-2 border-dashed border-gray-300 flex items-center justify-center gap-1.5 text-xs font-bold text-gray-500 bg-gray-50 rounded-lg py-1.5">
+                    <span>👆</span> <span>Geser (Drag) atau Ketuk (Tap) pilihan di bawah</span>
+                </div>
+            `;
+
+            container.appendChild(card);
+            card.addEventListener('pointerdown', handlePointerDown);
+        }
+
+        function handlePointerDown(e) {
+            if (state.isDragging) return;
+            e.preventDefault();
+            
+            const card = e.currentTarget;
+            state.isDragging = true;
+            sfx.drag();
+
+            const rect = card.getBoundingClientRect();
+            dragOffsetX = e.clientX - rect.left;
+            dragOffsetY = e.clientY - rect.top;
+
+            dragClone = card.cloneNode(true);
+            dragClone.classList.add('dragging-active');
+            dragClone.style.width = `${rect.width}px`;
+            dragClone.style.left = `${e.clientX - dragOffsetX}px`;
+            dragClone.style.top = `${e.clientY - dragOffsetY}px`;
+            
+            document.body.appendChild(dragClone);
+            card.style.opacity = '0.15';
+
+            window.addEventListener('pointermove', handlePointerMove);
+            window.addEventListener('pointerup', handlePointerUp);
+            window.addEventListener('pointercancel', handlePointerUp);
+        }
+
+        function handlePointerMove(e) {
+            if (!state.isDragging || !dragClone) return;
+            e.preventDefault();
+
+            dragClone.style.left = `${e.clientX - dragOffsetX}px`;
+            dragClone.style.top = `${e.clientY - dragOffsetY}px`;
+
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            document.querySelectorAll('.drop-zone').forEach(zone => zone.classList.remove('drag-over'));
+            
+            if (elementUnder) {
+                const dropZone = elementUnder.closest('.drop-zone');
+                if (dropZone) dropZone.classList.add('drag-over');
+            }
+        }
+
+        function handlePointerUp(e) {
+            if (!state.isDragging) return;
+            state.isDragging = false;
+
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+            window.removeEventListener('pointercancel', handlePointerUp);
+
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            let targetCategory = null;
+
+            if (elementUnder) {
+                const dropZone = elementUnder.closest('.drop-zone');
+                if (dropZone) {
+                    targetCategory = dropZone.getAttribute('data-category');
+                    dropZone.classList.remove('drag-over');
+                }
+            }
+
+            if (targetCategory) {
+                sfx.drop();
+                if (dragClone) dragClone.remove();
+                dragClone = null;
+                evaluateAnswer(targetCategory);
+            } else {
+                sfx.click();
+                if (dragClone) {
+                    const origCard = document.querySelector('#card-container .draggable-card');
+                    if (origCard) {
+                        const origRect = origCard.getBoundingClientRect();
+                        dragClone.style.transition = 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                        dragClone.style.left = `${origRect.left}px`;
+                        dragClone.style.top = `${origRect.top}px`;
+                        dragClone.style.transform = 'scale(1) rotate(0deg)';
+                        setTimeout(() => {
+                            if (dragClone) dragClone.remove();
+                            dragClone = null;
+                            if (origCard) origCard.style.opacity = '1';
+                        }, 200);
+                    } else {
+                        dragClone.remove();
+                        dragClone = null;
+                    }
+                }
+            }
+        }
+
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.addEventListener('click', (e) => {
+                if (state.isDragging) return;
+                const category = e.currentTarget.getAttribute('data-category');
+                if (category && state.currentIndex < state.questions.length) {
+                    sfx.click();
+                    evaluateAnswer(category);
+                }
+            });
+        });
+
+        function updateProgress() {
+            document.getElementById('progress-text').textContent = `${state.currentIndex}/${state.questions.length}`;
+            const percentage = (state.currentIndex / state.questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('score-text').textContent = state.score;
+        }
+
+        function evaluateAnswer(selectedCategory) {
+            const q = state.questions[state.currentIndex];
+            const isCorrect = selectedCategory === q.category;
+            
+            if (isCorrect) {
+                state.score += state.pointsPerCorrect;
+                sfx.correct();
+            } else {
+                sfx.wrong();
+            }
+
+            state.history.push({
+                question: q.text,
+                userAnswer: selectedCategory,
+                correctAnswer: q.category,
+                isCorrect: isCorrect,
+                explanation: q.explanation
+            });
+
+            state.currentIndex++;
+            updateProgress();
+            showFeedbackModal(isCorrect, selectedCategory, q);
+        }
+
+        function showFeedbackModal(isCorrect, userCat, qObj) {
+            const modal = document.getElementById('modal-feedback');
+            const content = document.getElementById('modal-content');
+            
+            document.getElementById('modal-icon').textContent = isCorrect ? '🎯' : '❌';
+            document.getElementById('modal-title').textContent = isCorrect ? 'ANALISIS TEPAT!' : 'ANALISIS MELESET';
+            document.getElementById('modal-title').className = `text-2xl sm:text-3xl font-black uppercase mb-2 ${isCorrect ? 'text-green-600' : 'text-red-500'}`;
+            
+            content.className = `neo-box w-full max-w-md bg-white p-5 sm:p-6 flex flex-col items-center text-center transform scale-100 transition-transform duration-200 ${isCorrect ? 'border-green-500 shadow-[6px_6px_0px_#22c55e]' : 'border-red-500 shadow-[6px_6px_0px_#ef4444]'}`;
+            
+            const catUser = document.getElementById('modal-cat-user');
+            catUser.textContent = `Pilihan Anda: ${userCat}`;
+            catUser.className = `px-3 py-1 border-2 border-black rounded-full font-bold text-xs ${getCatColor(userCat)}`;
+            
+            const catCorrect = document.getElementById('modal-cat-correct');
+            if (!isCorrect) {
+                catCorrect.textContent = `Seharusnya: ${qObj.category}`;
+                catCorrect.className = `px-3 py-1 border-2 border-black rounded-full font-bold text-xs ${getCatColor(qObj.category)}`;
+                catCorrect.classList.remove('hidden');
+            } else {
+                catCorrect.classList.add('hidden');
+            }
+
+            document.getElementById('modal-desc').innerHTML = `<strong>Akar Masalah & Feedback:</strong><br>${qObj.explanation}`;
+            
+            modal.classList.remove('hidden');
+        }
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            sfx.click();
+            document.getElementById('modal-feedback').classList.add('hidden');
+            renderCard();
+        });
+
+        function getCatColor(cat) {
+            switch(cat) {
+                case 'Kognitif': return 'bg-kognitif';
+                case 'Afektif': return 'bg-afektif';
+                case 'Psikomotorik': return 'bg-psikomotorik';
+                case 'Non-Training': return 'bg-nontraining';
+                default: return 'bg-gray-200';
+            }
+        }
+
+        function endGame() {
+            bgm.stop();
+            sfx.win();
+            showScreen('outro');
+            
+            document.getElementById('final-score').textContent = state.score;
+            
+            const maxScore = state.questions.length * state.pointsPerCorrect;
+            const percentage = parseFloat(((state.score / maxScore) * 100).toFixed(2)); 
+            const statusEl = document.getElementById('final-status');
+            
+            let statusText = "";
+            
+            if (percentage >= 80) {
+                statusText = "PROMOTED: Senior DNA Analyst 🌟";
+                statusEl.textContent = statusText;
+                statusEl.className = "inline-block px-4 py-2 bg-green-400 border-2 border-black font-black uppercase text-sm sm:text-base transform -rotate-1 text-black shadow-[3px_3px_0px_#000]";
+            } else if (percentage >= 50) {
+                statusText = "STATUS: Junior Analyst (Need Practice) 📈";
+                statusEl.textContent = statusText;
+                statusEl.className = "inline-block px-4 py-2 bg-yellow-300 border-2 border-black font-black uppercase text-sm sm:text-base transform -rotate-1 text-black shadow-[3px_3px_0px_#000]";
+            } else {
+                statusText = "STATUS: Trainee (Training Required) 📚";
+                statusEl.textContent = statusText;
+                statusEl.className = "inline-block px-4 py-2 bg-red-400 border-2 border-black font-black uppercase text-sm sm:text-base transform -rotate-1 text-black shadow-[3px_3px_0px_#000]";
+            }
+
+            const stats = { 'Kognitif': {c:0, t:0}, 'Afektif': {c:0, t:0}, 'Psikomotorik': {c:0, t:0}, 'Non-Training': {c:0, t:0} };
+            state.history.forEach(h => {
+                stats[h.correctAnswer].t++;
+                if (h.isCorrect) stats[h.correctAnswer].c++;
+            });
+
+            const statsContainer = document.getElementById('stats-container');
+            statsContainer.innerHTML = '';
+            for (let cat in stats) {
+                const div = document.createElement('div');
+                div.className = `p-2 border-2 border-black rounded-lg text-center ${getCatColor(cat)} shadow-[2px_2px_0px_#000]`;
+                div.innerHTML = `
+                    <div class="text-[10px] font-black uppercase">${cat}</div>
+                    <div class="text-base sm:text-lg font-black">${stats[cat].c}/${stats[cat].t}</div>
+                `;
+                statsContainer.appendChild(div);
+            }
+
+            const recapContainer = document.getElementById('recap-list');
+            recapContainer.innerHTML = '';
+            state.history.forEach((h, i) => {
+                const div = document.createElement('div');
+                div.className = `p-3 border-2 border-black rounded-lg ${h.isCorrect ? 'bg-green-50' : 'bg-red-50'}`;
+                div.innerHTML = `
+                    <div class="flex gap-2 items-start mb-1.5">
+                        <span class="text-base">${h.isCorrect ? '✅' : '❌'}</span>
+                        <div class="text-xs sm:text-sm font-semibold">${h.question}</div>
+                    </div>
+                    <div class="text-[11px] sm:text-xs ml-6 p-2 bg-white border border-gray-300 rounded">
+                        <span class="font-bold">Akar Masalah:</span> ${h.correctAnswer}<br>
+                        <span class="text-gray-600 italic">${h.explanation}</span>
+                    </div>
+                `;
+                recapContainer.appendChild(div);
+            });
+
+            const durationSeconds = Math.floor((Date.now() - state.startTime) / 1000);
+            
+            const playerData = {
+                "Timestamp": new Date().toISOString(),
+                "Nama_Pemain": state.playerName,
+                "Skor_Akhir": state.score,
+                "Persentase_Kelulusan": percentage,
+                "Status_Pencapaian": statusText,
+                "Durasi_Bermain": durationSeconds,
+                "Statistik_Kategori_(JSON)": JSON.stringify(stats),
+                "Log_Interaksi_Lengkap_(JSON)": JSON.stringify(state.history),
+                
+                "nama_pemain": state.playerName,
+                "skor_akhir": state.score,
+                "persentase_kelulusan": percentage,
+                "status_pencapaian": statusText,
+                "durasi_bermain": durationSeconds,
+                "statistik_kategori": stats,
+                "log_interaksi": state.history
+            };
+
+            sendGameDataToGoogleSheets(playerData);
+        }
+
+        async function sendGameDataToGoogleSheets(playerData) {
+            const scriptURL = 'https://script.google.com/macros/s/AKfycbxd6SI3QP0k_W9PdRRNhZaubzAgdv549Dmav6xIX_zy0vyrJve1d0zoJFBD4YYEk6jz/exec';
+            
+            const btnRestart = document.getElementById('btn-restart');
+            const btnText = document.getElementById('btn-restart-text');
+            const btnSpinner = document.getElementById('btn-restart-spinner');
+            
+            try {
+                btnRestart.disabled = true;
+                btnText.textContent = "MENYIMPAN DATA...";
+                btnSpinner.classList.remove('hidden');
+
+                const response = await fetch(scriptURL, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8' 
+                    },
+                    body: JSON.stringify(playerData)
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success' || response.ok) {
+                    console.log("Analytics sukses direkam:", result);
+                    btnText.textContent = "KEMBALI KE CLASSROOM";
+                } else {
+                    console.error("Gagal merekam data:", result);
+                    btnText.textContent = "GAGAL MENYIMPAN. KEMBALI MENGULANG?";
+                }
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                btnText.textContent = "KONEKSI ERROR. KEMBALI MENGULANG?";
+            } finally {
+                btnRestart.disabled = false;
+                btnSpinner.classList.add('hidden');
+            }
+        }
+
+        // --- INI ADALAH BAGIAN YANG DIREVISI: LINK GOOGLE CLASSROOM TERBARU ---
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            sfx.click();
+            window.location.href = "https://classroom.google.com/c/ODkxMzcxNjYzMzgz?cjc=zvf4fk3d";
+        });
+
+        function startGame() {
+            state.questions = shuffleArray(rawQuestions);
+            state.currentIndex = 0;
+            state.score = 0;
+            state.history = [];
+            state.startTime = Date.now(); 
+            
+            updateProgress();
+            showScreen('game');
+            renderCard();
+        }
+
+        document.addEventListener('touchmove', function(e) {
+            if (state.isDragging) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+    </script>
+</body>
+</html>
